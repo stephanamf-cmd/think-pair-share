@@ -1,4 +1,4 @@
-import { getStore } from "@/lib/store";
+import { getStore, storageInfo } from "@/lib/store";
 import { makeCode, makeSecret, hashSecret, cleanText } from "@/lib/ids";
 import { errorResponse, json } from "@/lib/server";
 import { HttpError } from "@/lib/actions";
@@ -11,7 +11,7 @@ const pinRequired = () => !!process.env.TEACHER_PIN;
 
 /** Setup info for the teacher page. */
 export async function GET() {
-  return json({ pinRequired: pinRequired(), storage: getStore().kind });
+  return json({ pinRequired: pinRequired(), ...storageInfo() });
 }
 
 /** Start a new session. */

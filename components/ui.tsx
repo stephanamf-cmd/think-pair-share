@@ -175,3 +175,31 @@ export function Spinner({ label = "Loading…" }: { label?: string }) {
     </div>
   );
 }
+
+/** Shown to teachers when the server has no database and is using temporary memory. */
+export function StorageWarning({ info }: { info: { storage?: string; envHints?: string[]; vercelEnv?: string | null } | null }) {
+  const [local, setLocal] = useState(true);
+  useEffect(() => setLocal(/^(localhost|127\.|0\.0\.0\.0|192\.168\.)/.test(window.location.hostname)), []);
+  if (!info || info.storage !== "memory" || local) return null;
+  const hints = info.envHints ?? [];
+  const env = info.vercelEnv;
+  return (
+    <Banner kind="warn">
+      <b>No database connection — sessions may disappear.</b>{" "}
+      {hints.length > 0 ? (
+        <>
+          This deployment can see <code>{hints.join(", ")}</code>, but none of them is a Redis connection the app can use
+          (it needs a <code>…_REST_API_URL</code> + <code>…_REST_API_TOKEN</code> pair, or a <code>redis://</code> URL).
+        </>
+      ) : (
+        <>
+          This deployment{env ? ` (${env})` : ""} has no database variables at all. In Vercel, open the project →{" "}
+          <b>Storage</b> → your Upstash database → <b>Connect Project</b>, and make sure{" "}
+          <b>{env === "preview" ? "Preview" : "Production"}</b> is ticked. Then go to <b>Deployments</b> and redeploy the
+          latest deployment.
+          {env === "preview" && " You're on a preview link — your main site address may already work."}
+        </>
+      )}
+    </Banner>
+  );
+}

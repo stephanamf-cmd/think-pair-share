@@ -109,7 +109,13 @@ export async function deleteSession(code: string, key: string) {
 
 /* ---------------- live polling ---------------- */
 
-export type LiveView = SessionView & { storage?: "upstash" | "memory" };
+export type StorageInfo = {
+  storage?: "upstash" | "redis" | "memory";
+  storageVar?: string | null;
+  envHints?: string[];
+  vercelEnv?: string | null;
+};
+export type LiveView = SessionView & StorageInfo;
 
 /**
  * Poll the session. Unchanged polls are tiny (the server compares version numbers).

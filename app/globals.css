@@ -1788,3 +1788,10 @@ button {
 .input-code::placeholder {
   color: #c9d2db;
 }
+.banner code {
+  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-word;
+}

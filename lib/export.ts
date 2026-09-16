@@ -48,6 +48,6 @@ export function toMarkdown(view: LiveView): string {
 }
 
 export function toJson(view: LiveView): string {
-  const { storage: _s, ...rest } = view;
+  const { storage: _s, storageVar: _v, envHints: _h, vercelEnv: _e, ...rest } = view;
   return JSON.stringify(rest, null, 2);
 }

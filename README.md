@@ -40,12 +40,16 @@ The teacher dashboard (`/teach`) lets you:
 ## Deploy to Vercel
 
 1. **Import the repo.** In Vercel, choose **Add New → Project** and import `stephanamf-cmd/think-pair-share`. Keep the default settings (Next.js), then click **Deploy**.
-2. **Add the database.** In the project, open **Storage → Create / Connect → Upstash for Redis (Marketplace)**. Create a free database and connect it to this project. Vercel adds the connection environment variables for you. This app accepts either `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` or `KV_REST_API_URL`/`KV_REST_API_TOKEN`.
+2. **Add the database.** In the project, open **Storage → Create / Connect → Upstash for Redis (Marketplace)**. Create a free database and connect it to this project, with **Production** (and Preview, if you use preview links) ticked. Vercel adds the connection environment variables for you.
+   The app finds them whatever they're called:
+   - any `…_REST_API_URL` + `…_REST_API_TOKEN` pair (e.g. `KV_REST_API_URL`, or with a custom prefix)
+   - `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`
+   - any `redis://` or `rediss://` URL, such as `REDIS_URL` from Redis Cloud
 3. **Set a teacher PIN (recommended).** Go to **Settings → Environment Variables** and add `TEACHER_PIN`, for example `4827`. Only people who know the PIN can start sessions. Students never need it.
 4. **Redeploy.** Go to **Deployments → ⋯ → Redeploy** so the new variables take effect.
 5. Open `https://<your-app>.vercel.app/teach`, start a session, and click **Open board ↗** on the projector.
 
-If no database is connected, the app falls back to temporary memory storage and the teacher page shows a warning. Don't run a lesson in this state: on Vercel, students may not all see the same session.
+If no database is connected, the app falls back to temporary memory storage and the teacher page shows a warning. Don't run a lesson in this state: on Vercel, students may not all see the same session. The warning lists any database-looking variable *names* it found (never their values) to help you spot a naming or environment mix-up. Remember to redeploy after connecting.
 
 ### Optional settings
 

@@ -1,4 +1,4 @@
-import { getStore } from "@/lib/store";
+import { getStore, storageInfo } from "@/lib/store";
 import { normaliseCode } from "@/lib/ids";
 import { errorResponse, json, resolveViewer } from "@/lib/server";
 import { HttpError, performAction } from "@/lib/actions";
@@ -27,7 +27,8 @@ export async function GET(req: Request, { params }: Ctx) {
     const st = await store.load(code);
     if (!st) throw notFound();
     const viewer = resolveViewer(req, st);
-    return json({ ...buildView(st, viewer), storage: store.kind });
+    const info = viewer.role === "teacher" ? storageInfo() : { storage: store.kind };
+    return json({ ...buildView(st, viewer), ...info });
   } catch (err) {
     return errorResponse(err);
   }

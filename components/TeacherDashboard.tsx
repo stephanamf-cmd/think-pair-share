@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, copyText, deleteSession, downloadFile, identity, useSession, type Auth, type LiveView } from "@/lib/client";
 import { exportFilename, toCsv, toJson, toMarkdown } from "@/lib/export";
 import { LIMITS, type Action, type Phase, type Relation } from "@/lib/types";
-import { Banner, Brand, HplBadge, PHASE_INFO, PhaseSteps, QR, Spinner, Timer, useOrigin } from "./ui";
+import { Banner, Brand, HplBadge, PHASE_INFO, PhaseSteps, QR, Spinner, StorageWarning, Timer, useOrigin } from "./ui";
 import GraphPanel from "./GraphPanel";
 import { groupColor } from "./Graph";
 
@@ -155,12 +155,7 @@ function Dashboard({
 
       <main className="container teach" style={{ maxWidth: 1400 }}>
         {offline && <Banner kind="warn">{offline}</Banner>}
-        {view.storage === "memory" && origin && !/localhost|127\.0\.0\.1/.test(origin) && (
-          <Banner kind="warn">
-            Temporary storage in use — connect <b>Upstash for Redis</b> in Vercel (Storage tab) and redeploy, or
-            students may not see the same session.
-          </Banner>
-        )}
+        <StorageWarning info={view} />
 
         <div className="teach-top">
           {/* ---- session & controls ---- */}

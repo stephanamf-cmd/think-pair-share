@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { identity, type TeacherEntry } from "@/lib/client";
 import { LIMITS } from "@/lib/types";
-import { Banner, Brand } from "./ui";
+import { Brand, StorageWarning } from "./ui";
 
 const EXAMPLES = [
   "Why does a metal spoon feel colder than a wooden one at the same temperature?",
@@ -15,7 +15,7 @@ const EXAMPLES = [
 
 export default function TeachHome() {
   const router = useRouter();
-  const [info, setInfo] = useState<{ pinRequired: boolean; storage: string } | null>(null);
+  const [info, setInfo] = useState<{ pinRequired: boolean; storage: string; envHints?: string[]; vercelEnv?: string | null } | null>(null);
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [pin, setPin] = useState("");
@@ -57,8 +57,6 @@ export default function TeachHome() {
     }
   };
 
-  const isLocal = typeof window !== "undefined" && /^(localhost|127\.|192\.168\.)/.test(window.location.hostname);
-
   return (
     <>
       <Brand>
@@ -74,12 +72,7 @@ export default function TeachHome() {
               Students join on their own devices with a code. You control the phases and the timer; the board shows the
               live idea graph.
             </p>
-            {info?.storage === "memory" && !isLocal && (
-              <Banner kind="warn">
-                No database is connected, so sessions may disappear. In Vercel, open <b>Storage → Upstash for Redis</b>,
-                connect it to this project, then redeploy.
-              </Banner>
-            )}
+            <StorageWarning info={info} />
             <label className="field" style={{ marginTop: 12 }}>
               <span>Title</span>
               <input

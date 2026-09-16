@@ -24,7 +24,9 @@ export interface GraphNode {
   group: number;
   redacted?: boolean;
   mine?: boolean;
-  match?: boolean; // search hit
+  match?: boolean; // search / theme hit
+  color?: string; // overrides the pair colour (e.g. colour by theme)
+  cluster?: number; // pull nodes with the same cluster number together
 }
 
 export interface GraphEdge {
@@ -41,7 +43,9 @@ export interface GraphSettings {
   showKeyword: boolean;
   minShared: number;
   ignorePrompt: boolean;
-  colorBy: "pair" | "none";
+  colorBy: "theme" | "pair" | "none";
+  maxWordLinks: number; // 1–5 strongest shared-word links per idea; 6 = all
+  clusterThemes: boolean; // group theme colours into separate islands
   arrows: boolean;
   textFade: number; // 0–1: higher = labels appear only when zoomed further in
   nodeSize: number; // 0.5–2
@@ -58,7 +62,9 @@ export const DEFAULT_SETTINGS: GraphSettings = {
   showKeyword: true,
   minShared: 1,
   ignorePrompt: true,
-  colorBy: "pair",
+  colorBy: "theme",
+  maxWordLinks: 2,
+  clusterThemes: true,
   arrows: true,
   textFade: 0.4,
   nodeSize: 1,
@@ -103,9 +109,14 @@ export const GROUP_PALETTE = [
   "#6FD3F2",
 ];
 
+// Theme colours (AI summary groups) — kept distinct from the pair palette order.
+export const THEME_PALETTE = ["#FCA83C", "#30B4B4", "#A8CC30", "#F28CB1", "#8EC5FF", "#FCD80C"];
+export const themeColor = (title: string, index: number) =>
+  /^other/i.test(title) ? "#9aa7bf" : THEME_PALETTE[index % THEME_PALETTE.length];
+
 export const groupColor = (g: number) => GROUP_PALETTE[(g >= 1000 ? g - 1000 : g) % GROUP_PALETTE.length];
 
-type SimNode = GraphNode & SimulationNodeDatum & { degree: number; born: number; r: number };
+type SimNode = GraphNode & SimulationNodeDatum & { degree: number; born: number; r: number; tx: number; ty: number };
 type SimEdge = Omit<GraphEdge, "source" | "target"> & SimulationLinkDatum<SimNode> & { source: SimNode; target: SimNode };
 
 interface Props {
@@ -120,6 +131,8 @@ interface Props {
   autoFit?: boolean;
   /** Bigger labels for the projector. */
   labelScale?: number;
+  /** Dim everything except nodes with match=true (search or theme focus). */
+  highlighting?: boolean;
 }
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -148,6 +161,7 @@ export default function Graph({
   className,
   autoFit = true,
   labelScale = 1,
+  highlighting = false,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -185,6 +199,7 @@ export default function Graph({
     linkFromId,
     autoFit,
     labelScale,
+    highlighting,
     onSelect,
   });
 
@@ -195,6 +210,7 @@ export default function Graph({
   S.current.onSelect = onSelect;
   S.current.autoFit = autoFit;
   S.current.labelScale = labelScale;
+  S.current.highlighting = highlighting;
   S.current.dirty = true;
 
   /* ---------- simulation setup (once) ---------- */
@@ -206,8 +222,8 @@ export default function Graph({
         "link",
         forceLink<SimNode, SimEdge>([]).id((d) => d.id),
       )
-      .force("x", forceX<SimNode>(0))
-      .force("y", forceY<SimNode>(0))
+      .force("x", forceX<SimNode>((d) => d.tx))
+      .force("y", forceY<SimNode>((d) => d.ty))
       .force("collide", forceCollide<SimNode>((d) => d.r + 14))
       .alphaDecay(0.02)
       .velocityDecay(0.35)
@@ -235,8 +251,9 @@ export default function Graph({
         const deg = Math.min(e.source.degree, e.target.degree) || 1;
         return (st.linkForce * base) / Math.sqrt(deg);
       });
-    (sim.force("x") as ReturnType<typeof forceX<SimNode>>).strength(st.centerForce * 0.12);
-    (sim.force("y") as ReturnType<typeof forceY<SimNode>>).strength(st.centerForce * 0.12);
+    const pull = (d: SimNode) => (d.cluster !== undefined ? Math.max(st.centerForce * 0.12, 0.13) : st.centerForce * 0.12);
+    (sim.force("x") as ReturnType<typeof forceX<SimNode>>).x((d) => d.tx).strength(pull);
+    (sim.force("y") as ReturnType<typeof forceY<SimNode>>).y((d) => d.ty).strength(pull);
     for (const n of S.current.nodes) n.r = radius(n, st.nodeSize);
     (sim.force("collide") as ReturnType<typeof forceCollide<SimNode>>).radius((d) => d.r + 14);
     sim.alpha(Math.max(sim.alpha(), 0.3)).restart();
@@ -279,6 +296,8 @@ export default function Graph({
           degree: 0,
           born: s.nodes.length === 0 ? now - 400 + Math.random() * 400 : now,
           r: 5,
+          tx: 0,
+          ty: 0,
         });
       }
     }
@@ -300,6 +319,32 @@ export default function Graph({
       e.target.degree++;
     }
     for (const n of next.values()) n.r = radius(n, s.settings.nodeSize);
+
+    // Cluster targets: themes sit on a ring around the centre; everything else is pulled to the middle.
+    const clusters = new Set<number>();
+    for (const n of next.values()) if (n.cluster !== undefined) clusters.add(n.cluster);
+    const count = clusters.size;
+    const ring = count > 1 ? 110 + 32 * Math.sqrt(next.size) : 0;
+    let clusterChanged = false;
+    for (const n of next.values()) {
+      let tx = 0,
+        ty = 0;
+      if (n.cluster !== undefined && count > 1) {
+        const a = (2 * Math.PI * n.cluster) / count - Math.PI / 2;
+        tx = Math.cos(a) * ring;
+        ty = Math.sin(a) * ring;
+      }
+      if (tx !== n.tx || ty !== n.ty) clusterChanged = true;
+      n.tx = tx;
+      n.ty = ty;
+    }
+    if (clusterChanged) {
+      const st = s.settings;
+      const pull = (d: SimNode) => (d.cluster !== undefined ? Math.max(st.centerForce * 0.12, 0.13) : st.centerForce * 0.12);
+      (sim.force("x") as ReturnType<typeof forceX<SimNode>>).x((d) => d.tx).strength(pull);
+      (sim.force("y") as ReturnType<typeof forceY<SimNode>>).y((d) => d.ty).strength(pull);
+      structural = true;
+    }
 
     s.nodeMap = next;
     s.nodes = [...next.values()];
@@ -680,7 +725,7 @@ function draw(ctx: CanvasRenderingContext2D, s: any, now: number) {
       if (e.target.id === focusId) neighbours.add(e.source.id);
     }
   }
-  const searching = settings.search.trim().length > 0;
+  const searching = settings.search.trim().length > 0 || !!s.highlighting;
   const mix = (a: number, b: number) => a + (b - a) * fT;
 
   /* edges */
@@ -739,7 +784,7 @@ function draw(ctx: CanvasRenderingContext2D, s: any, now: number) {
     let alpha = mix(1, neighbours.has(n.id) ? 1 : 0.2);
     if (searching && !n.match) alpha *= 0.25;
 
-    let fill = settings.colorBy === "pair" ? groupColor(n.group) : GRAPH_THEME.node;
+    let fill = n.color ?? (settings.colorBy === "none" ? GRAPH_THEME.node : groupColor(n.group));
     if (n.redacted) {
       fill = GRAPH_THEME.redacted;
       anyRedacted = true;

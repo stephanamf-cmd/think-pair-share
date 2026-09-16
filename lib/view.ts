@@ -109,7 +109,8 @@ export function buildView(st: SessionState, viewer: Viewer): SessionView {
       .map((s) => ({ id: s.id, name: s.name, pairIndex: myPairIdx }));
   }
 
-  const { teacherKeyHash: _k, pairs: _p, ...session } = meta;
+  const { teacherKeyHash: _k, pairs: _p, summary: rawSummary, ...session } = meta;
+  const summary = rawSummary && (viewer.role === "teacher" || rawSummary.shown) ? rawSummary : null;
 
   return {
     role: viewer.role,
@@ -124,5 +125,6 @@ export function buildView(st: SessionState, viewer: Viewer): SessionView {
     myPartners: partnerIds.map((id) => ({ id, name: nameOf(id) })),
     ideas,
     links,
+    summary,
   };
 }

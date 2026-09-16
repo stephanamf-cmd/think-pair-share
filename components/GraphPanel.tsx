@@ -6,6 +6,7 @@ import Graph, {
   GRAPH_THEME,
   RELATION_COLORS,
   groupColor,
+  themeColor,
   type GraphEdge,
   type GraphNode,
   type GraphSettings,
@@ -55,9 +56,14 @@ export default function GraphPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [linkFromId, setLinkFromId] = useState<string | null>(null);
   const [pending, setPending] = useState<{ source: string; target: string } | null>(null);
+  const [activeTheme, setActiveTheme] = useState<number | null>(null);
 
   useEffect(() => setSettings(loadSettings(mode)), [mode]);
-  const update = (patch: Partial<GraphSettings>) =>
+  const update = (patch: Partial<GraphSettings>) => {
+    if (patch.search !== undefined) setActiveTheme(null);
+    setSettingsSaved(patch);
+  };
+  const setSettingsSaved = (patch: Partial<GraphSettings>) =>
     setSettings((s) => {
       const next = { ...s, ...patch };
       try {
@@ -82,22 +88,63 @@ export default function GraphPanel({
       keywordEdges(readable, {
         minShared: settings.minShared,
         ignoreText: settings.ignorePrompt ? view.session.prompt : undefined,
+        maxPerIdea: settings.maxWordLinks >= 6 ? 0 : settings.maxWordLinks,
       }),
-    [readable, settings.minShared, settings.ignorePrompt, view.session.prompt],
+    [readable, settings.minShared, settings.ignorePrompt, settings.maxWordLinks, view.session.prompt],
   );
 
+  // Themes from the class summary (if there is one), limited to ideas that still exist.
+  const themes = useMemo(
+    () =>
+      (view.summary?.themes ?? [])
+        .map((t, i) => ({ ...t, ideaIds: t.ideaIds.filter((id) => ideaById.has(id)), color: themeColor(t.title, i) }))
+        .filter((t) => t.ideaIds.length > 0),
+    [view.summary, ideaById],
+  );
+  const themeOf = useMemo(() => {
+    const m = new Map<string, number>();
+    themes.forEach((t, i) => t.ideaIds.forEach((id) => m.set(id, i)));
+    return m;
+  }, [themes]);
+  useEffect(() => {
+    if (activeTheme !== null && activeTheme >= themes.length) setActiveTheme(null);
+  }, [themes.length, activeTheme]);
+  const byTheme = settings.colorBy === "theme" && themes.length > 0;
+
+  // A fresh summary switches the graph to theme colours (you can switch back under Graph settings → Groups).
+  const summaryStamp = view.summary?.createdAt ?? 0;
+  const [seenStamp, setSeenStamp] = useState(mode === "board" ? 0 : summaryStamp);
+  useEffect(() => {
+    if (summaryStamp && summaryStamp !== seenStamp) {
+      setSeenStamp(summaryStamp);
+      if (settings.colorBy !== "theme") setSettingsSaved({ colorBy: "theme" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summaryStamp]);
+
   const q = settings.search.trim().toLowerCase();
+  const focusSet = activeTheme !== null && themes[activeTheme] ? new Set(themes[activeTheme].ideaIds) : null;
   const nodes: GraphNode[] = useMemo(
     () =>
-      view.ideas.map((i) => ({
-        id: i.id,
-        label: i.redacted ? "" : i.text,
-        group: i.group,
-        redacted: i.redacted,
-        mine: i.mine,
-        match: q ? i.text.toLowerCase().includes(q) || i.authorNames.some((n) => n.toLowerCase().includes(q)) : false,
-      })),
-    [view.ideas, q],
+      view.ideas.map((i) => {
+        const t = themeOf.get(i.id);
+        return {
+          id: i.id,
+          label: i.redacted ? "" : i.text,
+          group: i.group,
+          redacted: i.redacted,
+          mine: i.mine,
+          color: byTheme ? (t !== undefined ? themes[t].color : "#9aa7bf") : undefined,
+          cluster: byTheme && settings.clusterThemes && t !== undefined ? t : undefined,
+          match: focusSet
+            ? focusSet.has(i.id)
+            : q
+              ? i.text.toLowerCase().includes(q) || i.authorNames.some((n) => n.toLowerCase().includes(q))
+              : false,
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [view.ideas, q, byTheme, themes, themeOf, activeTheme, settings.clusterThemes],
   );
 
   const edges: GraphEdge[] = useMemo(() => {
@@ -147,6 +194,7 @@ export default function GraphPanel({
         onSelect={handleSelect}
         autoFit={autoFit}
         labelScale={labelScale}
+        highlighting={!!focusSet}
       />
 
       {/* top-left: counts and common words */}
@@ -154,7 +202,22 @@ export default function GraphPanel({
         <div className="graph-stats">
           <b>{view.ideas.length}</b> ideas · <b>{view.links.length}</b> links · <b>{kwCount}</b> word links
         </div>
-        {kw.top.length > 0 && (
+        {themes.length > 0 ? (
+          <div className="chip-row">
+            {themes.map((t, i) => (
+              <button
+                key={t.title + i}
+                type="button"
+                className={`chip chip-theme ${activeTheme === i ? "chip-on" : ""}`}
+                onClick={() => setActiveTheme(activeTheme === i ? null : i)}
+                title={`${t.ideaIds.length} ideas — click to spotlight them`}
+              >
+                <i style={{ background: t.color }} />
+                {t.title} <span>{t.ideaIds.length}</span>
+              </button>
+            ))}
+          </div>
+        ) : kw.top.length > 0 && (
           <div className="chip-row">
             {kw.top.slice(0, 8).map((t) => (
               <button
@@ -204,6 +267,15 @@ export default function GraphPanel({
                 onChange={(v) => update({ minShared: v })}
                 format={(v) => `${v}+`}
               />
+              <Slider
+                label="Word links per idea"
+                min={1}
+                max={6}
+                step={1}
+                value={settings.maxWordLinks}
+                onChange={(v) => update({ maxWordLinks: v })}
+                format={(v) => (v >= 6 ? "All" : `${v}`)}
+              />
               <Toggle
                 label="Ignore words from the question"
                 value={settings.ignorePrompt}
@@ -212,13 +284,29 @@ export default function GraphPanel({
             </Section>
             <Section title="Groups">
               <div className="seg">
-                <button type="button" className={settings.colorBy === "pair" ? "on" : ""} onClick={() => update({ colorBy: "pair" })}>
-                  Colour by pair
+                <button
+                  type="button"
+                  className={byTheme ? "on" : ""}
+                  disabled={!themes.length}
+                  title={themes.length ? "Colour ideas by summary theme" : "Make a class summary first"}
+                  onClick={() => update({ colorBy: "theme" })}
+                >
+                  Theme
+                </button>
+                <button
+                  type="button"
+                  className={settings.colorBy === "pair" || (settings.colorBy === "theme" && !byTheme) ? "on" : ""}
+                  onClick={() => update({ colorBy: "pair" })}
+                >
+                  Pair
                 </button>
                 <button type="button" className={settings.colorBy === "none" ? "on" : ""} onClick={() => update({ colorBy: "none" })}>
                   Plain
                 </button>
               </div>
+              {themes.length > 0 && (
+                <Toggle label="Cluster themes together" value={settings.clusterThemes} onChange={(v) => update({ clusterThemes: v })} />
+              )}
             </Section>
             <Section title="Display">
               <Toggle label="Arrows" value={settings.arrows} onChange={(v) => update({ arrows: v })} />

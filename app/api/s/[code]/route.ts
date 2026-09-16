@@ -3,10 +3,12 @@ import { normaliseCode } from "@/lib/ids";
 import { errorResponse, json, resolveViewer } from "@/lib/server";
 import { HttpError, performAction } from "@/lib/actions";
 import { buildView } from "@/lib/view";
+import { aiInfo } from "@/lib/ai";
 import type { Action } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // AI summaries can take a few seconds
 
 type Ctx = { params: Promise<{ code: string }> };
 
@@ -27,7 +29,7 @@ export async function GET(req: Request, { params }: Ctx) {
     const st = await store.load(code);
     if (!st) throw notFound();
     const viewer = resolveViewer(req, st);
-    const info = viewer.role === "teacher" ? storageInfo() : { storage: store.kind };
+    const info = viewer.role === "teacher" ? { ...storageInfo(), ai: aiInfo() } : { storage: store.kind };
     return json({ ...buildView(st, viewer), ...info });
   } catch (err) {
     return errorResponse(err);

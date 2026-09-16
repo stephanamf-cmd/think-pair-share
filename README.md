@@ -23,16 +23,44 @@ The teacher dashboard (`/teach`) lets you:
 - remove a student or an idea
 - export the ideas as CSV, as an Obsidian-ready Markdown note with `[[#Idea n]]` links, or as JSON
 
+### Class summary (AI)
+
+In the Share phase, press **✨ Summarise ideas** on the dashboard. You get:
+
+- a short paragraph (roughly 80–130 words) you can teach from
+- 2–5 **themes** that group the ideas
+- the main misconception to watch out for
+- a follow-up question
+
+You can edit the paragraph, and then switch on **Show on board & student screens**. Press **↻ Update** when new ideas come in.
+
+The themes also tidy up the graph. Ideas are coloured by theme and pulled into separate groups, and clicking a theme chip highlights just those ideas.
+
+The summary uses whichever AI key you add in Vercel under **Settings → Environment Variables**. Redeploy after adding one.
+
+| Variable | Service | Cost | Default model |
+|---|---|---|---|
+| `GEMINI_API_KEY` | Google AI Studio (aistudio.google.com → *Get API key*) | Has a free tier | `gemini-3.8-flash`, then `gemini-3.5-flash-lite` if busy |
+| `GROQ_API_KEY` | Groq (console.groq.com → *API Keys*) | Has a free tier | `openai/gpt-oss-120b`, then `llama-3.3-70b-versatile` |
+| `ANTHROPIC_API_KEY` | Claude (platform.claude.com) | Paid, low cost | `claude-haiku-4-5-20251001` |
+
+- If you add more than one key, the app tries them in the order shown and moves to the next one if a service fails.
+- `AI_PROVIDER` (`gemini`, `groq` or `anthropic`) chooses which service to try first.
+- `AI_MODEL` changes that service's model.
+- With no key, or if every service fails, you still get a quick **built-in summary** made from the key words. The dashboard says when this happens.
+
+**Privacy.** Only the question, the session title and the anonymous idea texts and link types are sent to the AI. Student names are never sent. Free tiers may use what you send to improve the provider's products (Google says this about the Gemini free tier), so check that this fits your school's data policy.
+
 ### The graph
 
 - **Solid, coloured lines** are links that students made. The colour shows the link type.
-- **Dashed lines** join ideas that use the same key words. Words are lightly stemmed, so *heat*, *heating* and *heated* match. Common words, words from the question itself, and words used by more than half the class are ignored.
+- **Dashed lines** join ideas that use the same key words. Words are lightly stemmed, so *heat*, *heating* and *heated* match. Common words, words from the question itself, and words used by more than half the class are ignored. Rarer shared words count for more, and each idea keeps only its 2 strongest word links by default, which stops big classes turning into a tangle. You can change this with *Word links per idea*.
 - Node colour shows the pair. Bigger nodes have more connections.
 - Hover over or tap an idea to highlight its neighbours. You can drag nodes, and scroll or pinch to zoom. Double-click the background to fit everything on screen.
 - Labels fade in as you zoom, as in Obsidian.
 - **Graph settings** (the ⚙ button) has Obsidian-style controls:
   - Filters: search, link types, how many words ideas must share
-  - Groups
+  - Groups: colour by theme, pair or plain, and cluster themes together
   - Display: arrows, text fade, node size, link thickness
   - Forces: centre, repel, link force, link distance
 - The word chips at the top show the most-used words. Click one to highlight the ideas that use it.
@@ -57,6 +85,8 @@ If no database is connected, the app falls back to temporary memory storage and 
 |---|---|---|
 | `TEACHER_PIN` | *(none)* | PIN needed to start a session |
 | `SESSION_TTL_DAYS` | `30` | How long a session's data is kept after its last change |
+| `GEMINI_API_KEY` / `GROQ_API_KEY` / `ANTHROPIC_API_KEY` | *(none)* | Turns on AI class summaries (see above) |
+| `AI_PROVIDER`, `AI_MODEL` | *(auto)* | Choose which AI service to try first and its model |
 
 ## Links
 
@@ -88,6 +118,7 @@ To use a real database locally, copy `.env.example` to `.env.local` and fill in 
 - `lib/view.ts` decides what the teacher, each student and the board are allowed to see.
 - `components/Graph.tsx` draws the force-directed graph on a canvas with `d3-force`.
 - `lib/keywords.ts` works out the shared-word links in the browser.
+- `lib/ai.ts` builds the class summary. It calls Gemini, Groq or Claude with plain `fetch`, cleans up the reply, and falls back to the built-in summary if they all fail.
 
 Screens check for changes every 2–2.5 seconds and pause while the tab is hidden.
 

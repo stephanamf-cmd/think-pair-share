@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession, type Auth } from "@/lib/client";
 import { Brand, HplBadge, PHASE_INFO, PhasePill, QR, Spinner, Timer, useOrigin } from "./ui";
 import GraphPanel from "./GraphPanel";
+import { SummaryPanel } from "./SummaryCard";
 import { groupColor } from "./Graph";
 
 const BOARD_AUTH: Auth = { role: "board" };
@@ -98,24 +99,38 @@ export default function Board({ code }: { code: string }) {
       ) : (
         <div className="board-body">
           <GraphPanel view={view} mode="board" canLink={false} autoFit labelScale={1.35} />
-          <aside className="board-side">
-            <div style={{ display: "grid", gap: 10, justifyItems: "center", textAlign: "center" }}>
-              {joinUrl && <QR text={joinUrl} size={150} />}
-              <div className="muted small">{joinHost}</div>
-              <div className="board-code" style={{ fontSize: "2.4rem" }}>
-                {code}
-              </div>
-            </div>
-            <div className="row" style={{ gap: 20 }}>
-              <div>
-                <div className="big-count">{view.ideaCount}</div>
-                <span className="muted">ideas</span>
-              </div>
-              <div>
-                <div className="big-count">{view.studentCount}</div>
-                <span className="muted">students</span>
-              </div>
-            </div>
+          <aside className={`board-side ${view.summary ? "wide" : ""}`}>
+            {view.summary ? (
+              <>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <span className="muted small">{joinHost}</span>
+                  <span className="board-code" style={{ fontSize: "1.6rem" }}>
+                    {code}
+                  </span>
+                </div>
+                <SummaryPanel view={view} variant="board" />
+              </>
+            ) : (
+              <>
+                <div style={{ display: "grid", gap: 10, justifyItems: "center", textAlign: "center" }}>
+                  {joinUrl && <QR text={joinUrl} size={150} />}
+                  <div className="muted small">{joinHost}</div>
+                  <div className="board-code" style={{ fontSize: "2.4rem" }}>
+                    {code}
+                  </div>
+                </div>
+                <div className="row" style={{ gap: 20 }}>
+                  <div>
+                    <div className="big-count">{view.ideaCount}</div>
+                    <span className="muted">ideas</span>
+                  </div>
+                  <div>
+                    <div className="big-count">{view.studentCount}</div>
+                    <span className="muted">students</span>
+                  </div>
+                </div>
+              </>
+            )}
             {phase === "think" && (
               <p className="muted">Ideas stay hidden until the Share phase — each dot is someone&apos;s thinking.</p>
             )}
@@ -132,7 +147,7 @@ export default function Board({ code }: { code: string }) {
                 </div>
               </div>
             )}
-            {phase === "share" && (
+            {phase === "share" && !view.summary && (
               <p className="muted">
                 Click an idea to see its connections. Solid lines are links students made; dashed lines join ideas that
                 use the same key words.

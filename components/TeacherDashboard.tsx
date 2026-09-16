@@ -8,6 +8,7 @@ import { exportFilename, toCsv, toJson, toMarkdown } from "@/lib/export";
 import { LIMITS, type Action, type Phase, type Relation } from "@/lib/types";
 import { Banner, Brand, HplBadge, PHASE_INFO, PhaseSteps, QR, Spinner, StorageWarning, Timer, useOrigin } from "./ui";
 import GraphPanel from "./GraphPanel";
+import { TeacherSummary } from "./SummaryCard";
 import { groupColor } from "./Graph";
 
 export default function TeacherDashboard({ code }: { code: string }) {
@@ -425,6 +426,20 @@ function Dashboard({
 
           {/* ---- graph ---- */}
           <div className="stack">
+            <TeacherSummary
+              view={view}
+              onSummarise={async () => {
+                const res = await api<{ notice: string | null }>(code, auth, { action: "summarise" });
+                await refresh();
+                return res.notice;
+              }}
+              onUpdate={(patch) =>
+                act(
+                  { action: "updateSummary", ...patch },
+                  patch.clear ? "Summary deleted" : patch.shown !== undefined ? (patch.shown ? "Summary is on the board" : "Summary hidden") : "Summary saved",
+                )
+              }
+            />
             <GraphPanel
               view={view}
               mode="teacher"

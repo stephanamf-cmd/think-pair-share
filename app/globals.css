@@ -1795,3 +1795,155 @@ button {
   border-radius: 4px;
   word-break: break-word;
 }
+
+/* theme chips */
+.chip-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chip-theme i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.seg button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- class summary ---------- */
+.summary-card {
+  border-top: 4px solid var(--yellow);
+}
+.summary-title {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--navy);
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.summary-empty {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.summary-empty p {
+  flex: 1 1 280px;
+}
+.summary-paragraph {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.summary-paragraph.is-busy {
+  opacity: 0.45;
+}
+.summary-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.summary-themes span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef2f5;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+.summary-themes i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.summary-themes em {
+  font-style: normal;
+  opacity: 0.55;
+  font-weight: 500;
+}
+.summary-extras {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: #f6f8fa;
+  font-size: 0.92rem;
+}
+.summary-extras p {
+  margin: 0;
+}
+.summary-panel {
+  display: grid;
+  gap: 10px;
+}
+.summary-panel h4 {
+  margin: 0;
+}
+.summary-panel.summary-for-student {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--yellow);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.summary-panel.summary-for-board h4 {
+  color: var(--yellow);
+  font-size: 0.95rem;
+}
+.summary-panel.summary-for-board .summary-paragraph {
+  font-size: clamp(1rem, 1.35vw, 1.35rem);
+  color: #fff;
+}
+.summary-panel.summary-for-board .summary-themes span {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.summary-themes.lg span {
+  font-size: clamp(0.85rem, 1vw, 1.05rem);
+}
+.summary-next {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.summary-panel.summary-for-board .summary-next {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: clamp(0.95rem, 1.15vw, 1.2rem);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 10px;
+}
+.board-side.wide {
+  width: clamp(340px, 34vw, 560px);
+}
+.summary-for-student > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.summary-for-student > summary::-webkit-details-marker {
+  display: none;
+}
+.summary-for-student > summary h4::after {
+  content: " ▾";
+  opacity: 0.6;
+}
+.summary-for-student:not([open]) > summary h4::after {
+  content: " ▸";
+}
+.summary-for-student[open] > summary {
+  margin-bottom: 10px;
+}

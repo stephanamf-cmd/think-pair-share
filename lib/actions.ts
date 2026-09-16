@@ -10,8 +10,10 @@ import {
   type Meta,
   type SessionState,
   type Student,
+  type Summary,
 } from "./types";
 import { buildView, type Viewer } from "./view";
+import { summariseIdeas } from "./ai";
 
 export class HttpError extends Error {
   constructor(
@@ -262,6 +264,49 @@ export async function performAction(
       else pairs = pairUp(shuffle(ids));
       await store.putMeta({ ...meta, pairs });
       return { ok: true, pairs: pairs.length };
+    }
+
+    case "summarise": {
+      requireTeacher(viewer);
+      const ideas = Object.values(st.ideas).sort((a, b) => a.createdAt - b.createdAt);
+      if (ideas.length < 2) fail(400, "Wait until there are at least two ideas.");
+      if (meta.summary && now - meta.summary.createdAt < 8000) fail(429, "A summary was just made. Try again in a few seconds.");
+      const draft = await summariseIdeas({
+        title: meta.title,
+        prompt: meta.prompt,
+        ideas: ideas.map((i) => ({ id: i.id, text: i.text })),
+        links: Object.values(st.links).map((l) => ({ source: l.source, target: l.target, relation: l.relation, note: l.note })),
+      });
+      // The AI call takes a few seconds; save onto the latest session settings, not the ones we started with.
+      const fresh = (await store.load(code)) ?? fail(404, "The session has ended.");
+      const summary: Summary = {
+        ...draft,
+        createdAt: Date.now(),
+        ideaCount: ideas.length,
+        edited: false,
+        shown: fresh.meta.summary?.shown ?? false,
+      };
+      await store.putMeta({ ...fresh.meta, summary });
+      return { ok: true, source: summary.source, notice: summary.notice ?? null };
+    }
+
+    case "updateSummary": {
+      requireTeacher(viewer);
+      if (body.clear) {
+        await store.putMeta({ ...meta, summary: null });
+        return { ok: true };
+      }
+      const current = meta.summary ?? fail(404, "There is no summary yet.");
+      const next: Summary = { ...current };
+      if (typeof body.paragraph === "string") {
+        const text = cleanText(body.paragraph, 1500);
+        if (!text) fail(400, "The summary can't be empty.");
+        next.paragraph = text;
+        next.edited = true;
+      }
+      if (typeof body.shown === "boolean") next.shown = body.shown;
+      await store.putMeta({ ...meta, summary: next });
+      return { ok: true };
     }
 
     case "removeStudent": {

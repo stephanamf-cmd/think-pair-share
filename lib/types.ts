@@ -34,6 +34,29 @@ export interface Meta {
   locked: boolean;
   pairs: string[][];
   teacherKeyHash: string;
+  summary?: Summary | null;
+}
+
+export type AiProvider = "gemini" | "groq" | "anthropic";
+
+export interface SummaryTheme {
+  title: string;
+  ideaIds: string[];
+}
+
+/** A teachable round-up of the class's ideas, made by an AI model (or the built-in fallback). */
+export interface Summary {
+  paragraph: string;
+  themes: SummaryTheme[];
+  misconception: string;
+  nextQuestion: string;
+  source: AiProvider | "basic";
+  model: string;
+  createdAt: number;
+  ideaCount: number;
+  edited: boolean;
+  shown: boolean; // visible on the board and students' screens
+  notice?: string; // e.g. why the built-in summary was used
 }
 
 export interface Student {
@@ -105,7 +128,7 @@ export interface StudentView {
   pairIndex: number;
 }
 
-export type PublicMeta = Omit<Meta, "teacherKeyHash" | "pairs">;
+export type PublicMeta = Omit<Meta, "teacherKeyHash" | "pairs" | "summary">;
 
 export interface SessionView {
   role: Role;
@@ -120,6 +143,10 @@ export interface SessionView {
   myPartners: { id: string; name: string }[];
   ideas: IdeaView[];
   links: LinkView[];
+  /** Teacher: always (if made). Board/students: only when the teacher has shown it. */
+  summary: Summary | null;
+  /** Teacher only: which AI service is configured on the server (null = built-in summary only). */
+  ai?: { provider: AiProvider; model: string } | null;
 }
 
 export type Action =
@@ -140,4 +167,6 @@ export type Action =
       addSeconds?: number;
     }
   | { action: "makePairs"; mode: "shuffle" | "fill" | "clear" }
+  | { action: "summarise" }
+  | { action: "updateSummary"; paragraph?: string; shown?: boolean; clear?: boolean }
   | { action: "removeStudent"; id: string };

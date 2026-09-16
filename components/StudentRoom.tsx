@@ -7,6 +7,7 @@ import { LIMITS, type IdeaView, type Relation } from "@/lib/types";
 import { Banner, Brand, HplBadge, PHASE_INFO, PhasePill, Spinner, Timer } from "./ui";
 import JoinForm from "./JoinForm";
 import GraphPanel from "./GraphPanel";
+import { SummaryPanel } from "./SummaryCard";
 import LinkDialog from "./LinkDialog";
 import { groupColor } from "./Graph";
 
@@ -187,6 +188,8 @@ function Room({
             <p className="muted">{view.studentCount} in the session. Keep this page open.</p>
           </div>
         )}
+
+        {view.summary && <SummaryPanel view={view} variant="student" />}
 
         {phase === "pair" && <PartnerCard view={view} />}
 
